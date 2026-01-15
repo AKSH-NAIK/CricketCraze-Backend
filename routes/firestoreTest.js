@@ -3,6 +3,7 @@ const { db } = require("../config/firebase");
 
 const router = express.Router();
 
+
 router.get("/firestore-test", async (req, res) => {
   try {
     const docRef = db.collection("test").doc("connection");
