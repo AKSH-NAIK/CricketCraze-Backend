@@ -1,42 +1,59 @@
 const express = require("express");
-const admin = require("firebase-admin");
-const { db } = require("../config/firebase");
-const authMiddleware = require("../middleware/authMiddleware");
-
 const router = express.Router();
+const authMiddleware = require("../middleware/authMiddleware");
+const { db } = require("../config/firebase");
 
-/**
- * POST /api/progress
- * Saves a quiz attempt for the authenticated user
- */
-router.post("/", authMiddleware, async (req, res) => {
+// GET /api/progress - Retrieve user's progress history
+router.get("/", authMiddleware, async (req, res) => {
   try {
-    const { score, difficulty } = req.body;
     const uid = req.user.uid;
 
-    // Basic validation
-    if (typeof score !== "number" || !difficulty) {
-      return res.status(400).json({ message: "Invalid payload" });
-    }
-
-    await db
+    const snapshot = await db
       .collection("users")
       .doc(uid)
       .collection("progress")
-      .add({
-        score,
-        difficulty,
-        createdAt: admin.firestore.FieldValue.serverTimestamp()
-      });
+      .orderBy("timestamp", "desc")
+      .get();
 
-    return res.status(200).json({
-      message: "Progress saved successfully"
+    const progress = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+
+    res.status(200).json({ success: true, data: progress });
+  } catch (error) {
+    console.error("Error fetching progress:", error);
+    res.status(500).json({ success: false, message: "Failed to fetch progress" });
+  }
+});
+
+// POST /api/progress - Save new progress data
+router.post("/", authMiddleware, async (req, res) => {
+  try {
+    const uid = req.user.uid;
+    const progressData = req.body;
+
+    // Add timestamp if not provided
+    if (!progressData.timestamp) {
+      progressData.timestamp = new Date().toISOString();
+    }
+
+    // Save to Firestore
+    const docRef = await db
+      .collection("users")
+      .doc(uid)
+      .collection("progress")
+      .add(progressData);
+
+    res.status(201).json({
+      success: true,
+      message: "Progress saved successfully",
+      id: docRef.id,
+      data: progressData
     });
   } catch (error) {
     console.error("Error saving progress:", error);
-    return res.status(500).json({
-      message: "Internal server error"
-    });
+    res.status(500).json({ success: false, message: "Failed to save progress" });
   }
 });
 
