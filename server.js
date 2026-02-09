@@ -12,6 +12,11 @@ app.use(express.json());
 app.use("/api/test", protectedRoutes);
 app.use("/api/progress", progressRoutes);
 
+// Root route status message
+app.get("/", (req, res) => {
+  res.json({ message: "CricketCraze Backend is running!" });
+});
+
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
